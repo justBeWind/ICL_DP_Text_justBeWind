@@ -27,7 +27,7 @@ nltk.download('stopwords')
 bash run.sh
 ```
 
-# ICL Prompt
+# ICL Prompt of Summary Task
 
 ![Prompt_figure](./prompt.png)
 
