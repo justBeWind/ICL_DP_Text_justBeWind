@@ -75,7 +75,9 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
 
 
-    llm = models.OpenAILLM(model_path='gpt-3.5-turbo')
+    target_model = os.environ.get("DEFAULT_MODEL", "gpt-3.5-turbo")
+    llm = models.OpenAILLM(model_path=target_model)
+    print(f"\n[Strict Professor Audit]: Connected to Black-box Evaluation LLM: {target_model}\n")
     
     
     i = 1
