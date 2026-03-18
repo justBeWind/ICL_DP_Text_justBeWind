@@ -1,6 +1,10 @@
 import torch
-# from transformers import GPT2Tokenizer, GPT2Model
 import numpy as np
+import nltk
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
 from nltk.corpus import stopwords
 import string
 import json
@@ -307,7 +311,9 @@ def Dynamic_DP_get_probabilities(final_embeddings, word_embeddings_layer, vocab_
             current_eps = args.eps
             
         k_val = dynamic_k_list[i]
-        k_sims = normalized_top_similarities[i, :k_val]
+        # [Strict Professor Audit]: Explicitly cast to float32 to avoid BFloat16 
+        # compatibility issues during softmax and ensure numerical stability.
+        k_sims = normalized_top_similarities[i, :k_val].float()
         
         dp_sims = torch.exp(current_eps * k_sims / 2.0)
         probs = torch.softmax(dp_sims, dim=-1).cpu().numpy()
