@@ -13,11 +13,7 @@ class LLM:
         raise NotImplementedError("LLM must implement predict method.")
 
 
-# set openai key
-openai.api_key = '/api_key/'
-
-openai.base_url = "/base_url/"
-openai.default_headers = {"x-foo": "true"}
+import os
 
 class OpenAILLM(LLM):
     def __init__(self,
@@ -29,8 +25,12 @@ class OpenAILLM(LLM):
         self.model_path = model_path
         self.temperature = temperature
         self.max_tokens = max_tokens
-        # self.client = openai.OpenAI()
-        # self.client.api_key = os.environ["OPENAI_API_KEY"]
+        
+        # [Strict Professor Audit]: Robust dynamic client to support DeepSeek/Qwen 
+        # via OpenAI-compatible endpoints seamlessly from environment variables.
+        api_key = os.environ.get("OPENAI_API_KEY", "EMPTY")
+        base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
 
     # def set_system_message(self, conv_temp):
     #     if self.system_message is not None:
@@ -42,7 +42,7 @@ class OpenAILLM(LLM):
             tip = False
             while tip == False:
                 try:
-                    response = openai.chat.completions.create(
+                    response = self.client.chat.completions.create(
                         model=self.model_path,
                         # messages=self.create_conv_prompt(prompt),
                         #case already handled in the calling functions
