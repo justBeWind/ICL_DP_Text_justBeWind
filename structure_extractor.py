@@ -1,4 +1,5 @@
 import spacy
+import spacy.cli
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,7 +20,6 @@ class StructureExtractor:
                 logger.info("Loaded SpaCy en_core_web_sm for structure extraction.")
             except OSError:
                 logger.warning("SpaCy model en_core_web_sm not found. Downloading...")
-                import spacy.cli
                 spacy.cli.download("en_core_web_sm")
                 self.nlp = spacy.load("en_core_web_sm")
         else:
