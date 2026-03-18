@@ -1,5 +1,6 @@
 # ICL_DP_Text-Sanitization
-[Download Full Paper PDF Here] <a href="[https://arxiv.org/abs/2502.10794](https://github.com/larryfans/ICL_DP_Text-Sanitization/blob/main/Paper_Full_Version.pdf)">In-Context Learning with Differentially Private Text Sanitization in Large Language Models</a>
+[Full Paper PDF Here] <a href="https://github.com/larryfans/ICL_DP_Text-Sanitization/blob/main/Paper_Full_Version.pdf">In-Context Learning with Differentially Private Text Sanitization in Large Language Models</a>
+
 ![model_figure](./framework.png)
 ## Introduction
 This repo contains source code for "In-Context Learning with Differentially Private Text Sanitization in Large Language Models" (accepted to the Findings of DSPP 2024 )
