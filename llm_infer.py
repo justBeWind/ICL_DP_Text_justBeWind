@@ -89,6 +89,7 @@ if __name__ == "__main__":
     
     print(f'Starting inference on {len(test_data)} samples...')
 
+    answer_data = []
     for item in tqdm(range(len(test_data)), desc="Evaluating Utility"):
         # if item > 10:
         #     break
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                 temperature=0.1, max_tokens=60)
         elif args.shot == '0':
             output = llm.generate(prompt=llm.create_conv_prompt(Summarize_Prompt_Tamplete_0_shot.format(
-                private_dialogue=test_data[item]['context'])), 
+                private_dialogue=test_data[item]['private_context'])), 
                 temperature=0.1, max_tokens=100)
             
         # [Strict Professor Audit]: Clean auditing - reducing console noise.
