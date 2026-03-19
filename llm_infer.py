@@ -17,6 +17,7 @@ def get_parser():
     parser.add_argument("--is_map", type=bool, default=False, required=False)
     parser.add_argument("--shot",type=str,choices=['0', '2'])
     parser.add_argument("--save_folder",type=str, default='./Eval_Final/')
+    parser.add_argument("--use_private", type=bool, default=True, help="Whether to use noised context for inference")
     return parser
 
 
@@ -49,11 +50,15 @@ def create_prompt(prompt,model_name):
     return full_prompt
 
 def replace_words(text, word_map):
+    if not word_map:
+        return text
     def replace(match):
         word = match.group(0)
         return word_map.get(word, word)
     
-    pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in word_map.keys()) + r')\b')
+    # Sort keys by length descending to match longest possible word first
+    sorted_keys = sorted(word_map.keys(), key=len, reverse=True)
+    pattern = re.compile(r'\b(' + '|'.join(re.escape(key) for key in sorted_keys) + r')\b')
     
     return pattern.sub(replace, text)
 
@@ -85,7 +90,7 @@ if __name__ == "__main__":
     if not os.path.exists(args.save_folder):
         os.makedirs(args.save_folder)
 
-    output_filename = os.path.join(args.save_folder, args.shot + "_shot_" + args.version.replace('/', '_') + ".json")
+    output_filename = os.path.join(args.save_folder, args.shot + "_shot_" + ("private_" if args.use_private else "original_") + args.version.replace('/', '_') + ".json")
     
     print(f'Starting inference on {len(test_data)} samples...')
 
@@ -93,49 +98,43 @@ if __name__ == "__main__":
     for item in tqdm(range(len(test_data)), desc="Evaluating Utility"):
         # if item > 10:
         #     break
+        
+        # Decide context to use
+        current_context = test_data[item]['private_context'] if args.use_private else test_data[item]['context']
+
         if args.shot == '2':
+            # Note: For 2-shot, we should also decide whether examples should be private
+            ctx1 = train_data[item*2]['private_context'] if args.use_private else train_data[item*2]['context']
+            res1 = train_data[item*2]['private_response'] if args.use_private else train_data[item*2]['response']
+            ctx2 = train_data[item*2+1]['private_context'] if args.use_private else train_data[item*2+1]['context']
+            res2 = train_data[item*2+1]['private_response'] if args.use_private else train_data[item*2+1]['response']
+            
             output = llm.generate(prompt=llm.create_conv_prompt(Summarize_Prompt_Tamplete_2_shot.format(
-                dialogue1=train_data[item*2]['private_context'],
-                summary1=train_data[item*2]['private_response'],
-                dialogue2=train_data[item*2+1]['private_context'],
-                summary2=train_data[item*2+1]['private_response'],
-                private_dialogue=test_data[item]['private_context'])), 
-                temperature=0.1, max_tokens=60)
+                dialogue1=ctx1,
+                summary1=res1,
+                dialogue2=ctx2,
+                summary2=res2,
+                private_dialogue=current_context)), 
+                temperature=0.1, max_tokens=100)
         elif args.shot == '0':
             output = llm.generate(prompt=llm.create_conv_prompt(Summarize_Prompt_Tamplete_0_shot.format(
-                private_dialogue=test_data[item]['private_context'])), 
+                private_dialogue=current_context)), 
                 temperature=0.1, max_tokens=100)
             
-        # [Strict Professor Audit]: Clean auditing - reducing console noise.
-        # print("llm: ", output)
-        # if need map
-        reversed_map = {}
+        # [Strict Professor Audit]: Robust String-based Remapping (Improved from fragile token-ID matching)
+        remap_sentence = output
         if args.is_map == True:
-            reversed_map = {v: k for k, v in test_data[item]['private_word_map'].items()}
-        
-        input_ids = tokenizer.encode(output, return_tensors='pt')
-        # remap_text = []
-        remap_token = []
-        for index in range(input_ids.size(1)):
-            token_str = tokenizer.decode([input_ids[0, index]])
-            if token_str == tokenizer.bos_token:
-                continue
-            if int(input_ids[0, index]) in reversed_map:
-                remap_token.append(int(reversed_map[int(input_ids[0, index])]))
-                # print("map--")
-            else:
-                remap_token.append(int(input_ids[0, index]))
-        remap_sentence = tokenizer.decode(remap_token)
-        #     token_str = tokenizer.decode([input_ids[0, index]]).strip()
-        #     if token_str in reversed_map:
-        #         remap_text.append(reversed_map[token_str])
-        #         print('-map-')
-        #     else:
-        #         remap_text.append(token_str)
-        # remap_sentence = " ".join(remap_text)
-        # new_text = replace_words(output, reversed_map)
-        # print("map answer: ", remap_sentence)
-        # print("label: ", test_data[item]['response'])
+            # Build a string-level mapping dictionary
+            # Warning: Some token IDs might decode with leading spaces. We need to handle that.
+            str_map = {}
+            for noised_id, original_id in test_data[item]['private_word_map'].items():
+                noised_str = tokenizer.decode([int(noised_id)]).strip()
+                original_str = tokenizer.decode([int(original_id)]).strip()
+                if noised_str:
+                    str_map[noised_str] = original_str
+            
+            # Apply substitution
+            remap_sentence = replace_words(output, str_map)
 
         answer_data.append({
             "index": item,
