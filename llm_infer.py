@@ -80,14 +80,16 @@ if __name__ == "__main__":
     print(f"\n[Strict Professor Audit]: Connected to Black-box Evaluation LLM: {target_model}\n")
     
     
-    i = 1
-    answer_data = []
+    # [Strict Professor Audit]: Pre-create evaluation directory to avoid runtime crashes.
+    if not os.path.exists(args.save_folder):
+        os.makedirs(args.save_folder)
 
-    print('len: ', len(test_data))
+    output_filename = os.path.join(args.save_folder, args.shot + "_shot_" + args.version.replace('/', '_') + ".json")
+    
+    print(f'Starting inference on {len(test_data)} samples...')
 
-    for item in  range(len(test_data)):
-        print("------", i, '/', len(test_data), "------")
-        # if i > 10:
+    for item in tqdm(range(len(test_data)), desc="Evaluating Utility"):
+        # if item > 10:
         #     break
         if args.shot == '2':
             output = llm.generate(prompt=llm.create_conv_prompt(Summarize_Prompt_Tamplete_2_shot.format(
@@ -102,7 +104,8 @@ if __name__ == "__main__":
                 private_dialogue=test_data[item]['context'])), 
                 temperature=0.1, max_tokens=100)
             
-        print("llm: ", output)
+        # [Strict Professor Audit]: Clean auditing - reducing console noise.
+        # print("llm: ", output)
         # if need map
         reversed_map = {}
         if args.is_map == True:
@@ -129,25 +132,19 @@ if __name__ == "__main__":
         #         remap_text.append(token_str)
         # remap_sentence = " ".join(remap_text)
         # new_text = replace_words(output, reversed_map)
-        print("map answer: ", remap_sentence)
-        
-        print("label: ", test_data[item]['response'])
+        # print("map answer: ", remap_sentence)
+        # print("label: ", test_data[item]['response'])
 
         answer_data.append({
+            "index": item,
             "response": test_data[item]['response'],
             "llm_response": output,
             "noised_remap_llm_response": remap_sentence,
-            
         })
         
-        i += 1
+        # [Strict Professor Audit]: Incremental saving for robustness (Rule 4).
+        with open(output_filename, 'w', encoding='utf-8') as f:
+            json.dump(answer_data, f, ensure_ascii=False, indent=4)
         
-    import os
-    if not os.path.exists(args.save_folder):
-        os.makedirs(args.save_folder)
-    
-    
-    # with open(os.path.join(args.save_folder, args.shot+"_shot_raw"+".json"), 'w', encoding='utf-8') as f:
-    with open(os.path.join(args.save_folder, args.shot+"_shot_"+args.version+".json"), 'w', encoding='utf-8') as f:
-        json.dump(answer_data, f, ensure_ascii=False, indent=4)
+    print(f"\n✅ Inference completed. Results saved to: {output_filename}")
 
