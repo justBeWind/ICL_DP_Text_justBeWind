@@ -15,16 +15,27 @@ from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM, AutoCon
 from typing import Tuple
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def get_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--eps", type=float, default=3)
     parser.add_argument("--top_k", type=int, default=20)
     parser.add_argument("--seed",type=int,default=50)
     parser.add_argument("--device",type=str,default='cuda')
-    parser.add_argument("--RoPE",type=bool, default=True, required=False)
+    parser.add_argument("--RoPE",type=str2bool, default=True)
     parser.add_argument("--combine_method",type=str,choices=['combine', 'decode'], default="decode")
-    parser.add_argument("--use_dynamic_k", type=bool, default=True, help="Enable DYNTEXT Dynamic K")
-    parser.add_argument("--use_structure", type=bool, default=True, help="Enable DP-ST Structure Extractor")
+    parser.add_argument("--use_dynamic_k", type=str2bool, default=True, help="Enable DYNTEXT Dynamic K")
+    parser.add_argument("--use_structure", type=str2bool, default=True, help="Enable DP-ST Structure Extractor")
+    parser.add_argument("--save_folder", type=str, default='Noise_version', help="Folder to save results")
     return parser
 
 
@@ -259,15 +270,16 @@ def generate_noised_sentence_s2(df, args, type, tokenizer, model):
             "private_response": answer_word_str,
             "private_word_map": private_word_map
         })
-    if not os.path.exists(f"Noise_version/cm_{args.combine_method}_RoPE_{args.RoPE}_eps_{args.eps}_top_{args.top_k}"):
-        os.makedirs(f"Noise_version/cm_{args.combine_method}_RoPE_{args.RoPE}_eps_{args.eps}_top_{args.top_k}")
+    save_path = f"{args.save_folder}/cm_{args.combine_method}_RoPE_{args.RoPE}_eps_{args.eps}_top_{args.top_k}"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
     
-    with open(f"Noise_version/cm_{args.combine_method}_RoPE_{args.RoPE}_eps_{args.eps}_top_{args.top_k}/"+ type +".json", 'w', encoding='utf-8') as f:
+    with open(os.path.join(save_path, type + ".json"), 'w', encoding='utf-8') as f:
         json.dump(new_dataset, f, ensure_ascii=False, indent=4)
         
     audit_stats["avg_context_dynamic_k"] = round(audit_stats["sum_context_dynamic_k"] / max(1, audit_stats["total_context_tokens"]), 2)
     audit_stats["avg_response_dynamic_k"] = round(audit_stats["sum_response_dynamic_k"] / max(1, audit_stats["total_response_tokens"]), 2)
-    with open(f"Noise_version/cm_{args.combine_method}_RoPE_{args.RoPE}_eps_{args.eps}_top_{args.top_k}/"+ type +"_audit.json", 'w', encoding='utf-8') as f:
+    with open(os.path.join(save_path, type + "_audit.json"), 'w', encoding='utf-8') as f:
         json.dump(audit_stats, f, ensure_ascii=False, indent=4)
       
 def Dynamic_DP_get_probabilities(final_embeddings, word_embeddings_layer, vocab_ids, structural_indices, args, batch_size = 10000):
