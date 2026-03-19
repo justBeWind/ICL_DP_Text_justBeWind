@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 import re
 import argparse
 import os
+from tqdm import tqdm
 
 def get_parser():
     parser = argparse.ArgumentParser()
