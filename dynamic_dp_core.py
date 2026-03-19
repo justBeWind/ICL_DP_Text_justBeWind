@@ -1,6 +1,6 @@
 import torch
 
-def calculate_dynamic_K(similarities, base_K, gamma_threshold=0.5, density_epsilon=0.1):
+def calculate_dynamic_K(similarities, base_K, gamma_threshold=0.2, density_epsilon=0.1):
     """
     Computes dynamic K for each token based on semantic density directly from the similarity matrix.
     
@@ -35,7 +35,7 @@ def calculate_dynamic_K(similarities, base_K, gamma_threshold=0.5, density_epsil
     # Min-Max Normalization within the sequence (or fixed global min/max)
     # To prevent information leakage from sequence min/max, we use an established global upper bound 
     # for typical neighborhood sizes in LLaMA-3 space, avoiding O(N^2) full vocab analysis.
-    GLOBAL_MAX_DENSITY = 500.0  # Configurable hyperparameter based on typical manifold density
+    GLOBAL_MAX_DENSITY = 200.0  # Configurable hyperparameter based on typical manifold density
     normalized_density = torch.clamp(noisy_density / GLOBAL_MAX_DENSITY, min=0.0, max=1.0)
     
     # 2. Dynamic K scaling
